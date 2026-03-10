@@ -1,6 +1,17 @@
 const request = require("supertest");
 const app = require("../src/index.js"); // adjust path if your express app is elsewhere
 
+//cleanup
+const pool = require("../src/index").pool;
+
+beforeAll(async () => {
+  await pool.query("DELETE FROM users WHERE email LIKE '%@example.com'");
+});
+
+afterAll(async () => {
+  await pool.query("DELETE FROM users WHERE email LIKE '%@example.com'");
+  await pool.end();
+});
 // ---------------------------------------------------------------
 // These tests cover the full CRUD lifecycle for users.
 // They run in order — the created user's ID is reused across tests.
