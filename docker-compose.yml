@@ -1,0 +1,53 @@
+# The version of the docker-compose syntax
+version: '3.8'
+
+services:
+
+  # --- Service 1: Your Node.js App ---
+  app:
+    # Build the image using the Dockerfile in the current directory
+    build: .
+
+    # Map port 3000 on your laptop to port 3000 inside the container
+    # Format is "host:container" — so you still visit localhost:3000
+    ports:
+      - "3000:3000"
+
+    # Environment variables passed into the container
+    # Your app reads these to connect to the database
+    environment:
+      - DB_USER=psql
+      - DB_HOST=db        # "db" is the name of the postgres service below — Docker resolves this automatically
+      - DB_NAME=test
+      - DB_PASSWORD=secret
+      - DB_PORT=5432
+
+    # Don't start the app until the db service is up
+    depends_on:
+      - db
+
+    # Automatically restart the app if it crashes
+    restart: unless-stopped
+
+  # --- Service 2: PostgreSQL Database ---
+  db:
+    # Use the official PostgreSQL image, version 15
+    image: postgres:15
+
+    # Environment variables that PostgreSQL uses to set itself up on first run
+    environment:
+      - POSTGRES_USER=psql
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=test
+
+    # Persist the database data even if the container is stopped or removed
+    # Without this, your data disappears every time you restart
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+# Named volume — Docker manages this storage on your machine
+volumes:
+  postgres_data:
