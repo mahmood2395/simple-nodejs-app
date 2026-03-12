@@ -1,0 +1,113 @@
+name: CI Pipeline
+
+# Trigger on every push or pull request to main
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ---------------------------------------------------------------
+  # JOB 1: Run Tests
+  # ---------------------------------------------------------------
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: psql
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm' # caches node_modules between runs — faster installs
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Set up database
+        env:
+          PGPASSWORD: secret
+        run: |
+          psql -h 127.0.0.1 -U psql -d test -c "
+            CREATE TABLE IF NOT EXISTS users (
+              id SERIAL PRIMARY KEY,
+              name VARCHAR(100) NOT NULL,
+              email VARCHAR(100) NOT NULL UNIQUE
+            );"
+
+      - name: Run tests
+        env:
+          DB_USER: psql
+          DB_HOST: 127.0.0.1
+          DB_NAME: test
+          DB_PASSWORD: secret
+          DB_PORT: 5432
+        run: npm test
+
+  # ---------------------------------------------------------------
+  # JOB 2: Build & Push Docker Image to Docker Hub
+  # Only runs if tests pass, and only on push to main (not PRs)
+  # We don't want to publish an image for every PR, only merged code
+  # ---------------------------------------------------------------
+  build-and-push:
+    name: Build & Push Docker Image
+    needs: test # wait for tests to pass first
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' # skip this job on pull requests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Docker Buildx — an advanced Docker build engine
+      # Required for caching and multi-platform builds
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Log in to Docker Hub using secrets stored in GitHub
+      # ${{ secrets.DOCKERHUB_USERNAME }} reads the secret you created
+      # This way credentials never appear in your code or logs
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build the image and push it to Docker Hub
+      # Also uses GitHub Actions cache to speed up builds
+      # If your Dockerfile layers haven't changed, they're pulled from cache
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          # Tags the image with two tags:
+          # 1. "latest" — always points to the most recent build
+          # 2. The git commit SHA — so you can trace exactly which code is in each image
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/simple-nodejs-app:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/simple-nodejs-app:${{ github.sha }}
+          # Cache layers from the previous build stored in GitHub Actions cache
+          # "cache-from" pulls cached layers before building
+          # "cache-to" saves new layers to cache after building
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
