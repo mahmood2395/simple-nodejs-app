@@ -39,7 +39,7 @@ app.get('/health', (req, res) => {
   // Define routes for CRUD operations
 
 // Create (POST)
-app.post('/users', async (req, res) => {
+app.post('/user', async (req, res) => {
   try {
     const { name, email } = req.body;
 
