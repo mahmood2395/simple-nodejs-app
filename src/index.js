@@ -118,4 +118,4 @@ if (require.main === module) {
 }
 
 module.exports = app;
-module.exports.pool = pool;
+module.exports.pool = pool;# test cache
