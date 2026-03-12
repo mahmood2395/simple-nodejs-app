@@ -31,7 +31,12 @@ app.get('/', (req, res) => {
     res.send('<h1>Welcome to the Home Page</h1><p>This is the home page of the CRUD API.</p><p>Now on Docker.</p>');
   });
 
-// Define routes for CRUD operations
+//health checkpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+  // Define routes for CRUD operations
 
 // Create (POST)
 app.post('/users', async (req, res) => {
