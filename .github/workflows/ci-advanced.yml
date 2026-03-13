@@ -111,6 +111,8 @@ jobs:
           # "cache-to" saves new layers to cache after building
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  #Step 3 Deployment
   deploy:
     name: Deploy to Azure VM
     needs: build-and-push
@@ -125,4 +127,9 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            bash /app/deploy.sh
+            bash ~/app/deploy.sh
+
+
+
+
+            
