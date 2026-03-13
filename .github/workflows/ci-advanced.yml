@@ -111,3 +111,18 @@ jobs:
           # "cache-to" saves new layers to cache after building
           cache-from: type=gha
           cache-to: type=gha,mode=max
+  deploy:
+    name: Deploy to Azure VM
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            bash /app/deploy.sh
